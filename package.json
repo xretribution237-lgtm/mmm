@@ -4,7 +4,7 @@
   "description": "Mod Makers Discord Bot - Mod Platform & Community Management",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node deploy-commands.js",
     "deploy-commands": "node deploy-commands.js"
   },
   "dependencies": {
@@ -17,5 +17,6 @@
     "node": ">=18.0.0"
   }
 }
+
 
 
