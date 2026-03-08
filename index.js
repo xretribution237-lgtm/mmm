@@ -1,6 +1,6 @@
 // index.js
 // =============================================
-// CreativeMode Bot — Main Entry Point
+// Mod Makers Bot — Main Entry Point
 // =============================================
 
 require('dotenv').config();
@@ -72,14 +72,14 @@ for (const file of fs.readdirSync(eventsDir).filter(f => f.endsWith('.js'))) {
 }
 
 // ── Ready ──────────────────────────────────────────────────────────────
-client.once('ready', () => {
-  console.log(`\n🟢 CreativeMode Bot online!`);
+client.once('clientReady', () => {
+  console.log(`\n🟢 Mod Makers Bot online!`);
   console.log(`   Logged in as: ${client.user.tag}`);
   console.log(`   Guild: ${process.env.GUILD_ID}`);
   console.log(`   Commands loaded: ${client.commands.size}`);
   console.log(`\n   Run /setup in your server to initialize everything!\n`);
 
-  client.user.setActivity('CreativeMode.net | /requestmod', { type: 0 });
+  client.user.setActivity('Mod Makers | /requestmod', { type: 0 });
 });
 
 // ── Global error handlers ──────────────────────────────────────────────
