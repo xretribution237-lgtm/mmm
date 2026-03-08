@@ -1,6 +1,6 @@
-// src/utils/embeds.js
+// utils/embeds.js
 // =============================================
-// CreativeMode Bot - Embed Builder
+// Mod Makers Bot - Embed Builder
 // Centralized, beautiful embed templates with
 // consistent branding across all bot messages
 // =============================================
@@ -34,17 +34,18 @@ const EMOJI = {
   info: 'ℹ️',
 };
 
-const FOOTER = { text: 'CreativeMode.net • Mod Platform', iconURL: null };
+const FOOTER = { text: 'Mod Makers • Mod Platform', iconURL: null };
 
 module.exports = {
   COLORS,
   EMOJI,
+  FOOTER,
 
   // ── Verification embed (sent in #verify) ──────────────────────────
   verifyEmbed() {
     return new EmbedBuilder()
       .setColor(COLORS.green)
-      .setTitle(`${EMOJI.verified} Welcome to CreativeMode.net`)
+      .setTitle(`${EMOJI.verified} Welcome to Mod Makers`)
       .setDescription(
         `> **You're one reaction away from the community.**\n\n` +
         `React with ✅ below to verify yourself and gain access to the server.\n\n` +
@@ -54,7 +55,6 @@ module.exports = {
         `💬 **Full server access** — chat, tickets, leaderboard\n\n` +
         `*Emeralds are used to request custom mods from our admin team.*`
       )
-      .setImage('https://i.imgur.com/placeholder-banner.png') // Replace with your banner
       .setFooter(FOOTER)
       .setTimestamp();
   },
@@ -65,7 +65,7 @@ module.exports = {
       .setColor(COLORS.green)
       .setTitle(`${EMOJI.success} You're verified, ${username}!`)
       .setDescription(
-        `Welcome to **CreativeMode.net**! Here's what you've received:\n\n` +
+        `Welcome to **Mod Makers**! Here's what you've received:\n\n` +
         `${EMOJI.emerald} **${emeralds} Emeralds** added to your balance\n` +
         `🧩 **1 Free Mod Request** ready to use\n\n` +
         `Use \`/balance\` to check your emeralds.\n` +
@@ -94,17 +94,17 @@ module.exports = {
   // ── Mod request embed (posted in #mod-requests by admin) ───────────
   modRequestEmbed(request, requester) {
     const statusColors = {
-      pending:     COLORS.orange,
+      pending:       COLORS.orange,
       'in-progress': COLORS.blue,
-      completed:   COLORS.green,
-      rejected:    COLORS.red,
+      completed:     COLORS.green,
+      rejected:      COLORS.red,
     };
 
     const statusEmoji = {
-      pending:     '🟡',
+      pending:       '🟡',
       'in-progress': '🔵',
-      completed:   '🟢',
-      rejected:    '🔴',
+      completed:     '🟢',
+      rejected:      '🔴',
     };
 
     return new EmbedBuilder()
@@ -112,15 +112,15 @@ module.exports = {
       .setTitle(`${EMOJI.mod} Mod Request #${request.id.slice(0, 8).toUpperCase()}`)
       .setDescription(`> ${request.description}`)
       .addFields(
-        { name: '📋 Title', value: request.title, inline: true },
-        { name: '🔧 Type', value: request.mod_type, inline: true },
-        { name: `${EMOJI.emerald} Cost`, value: request.is_free ? '`FREE`' : `**${request.emerald_cost}** Emeralds`, inline: true },
-        { name: '👤 Requested By', value: `<@${request.user_id}>`, inline: true },
-        { name: '📊 Status', value: `${statusEmoji[request.status]} \`${request.status.toUpperCase()}\``, inline: true },
-        { name: '🛠️ Assigned To', value: request.assigned_to ? `<@${request.assigned_to}>` : '`Unassigned`', inline: true },
-        { name: '🕐 Submitted', value: `<t:${Math.floor(new Date(request.created_at).getTime() / 1000)}:R>`, inline: true },
+        { name: '📋 Title',       value: request.title,                                                                      inline: true },
+        { name: '🔧 Type',        value: request.mod_type,                                                                   inline: true },
+        { name: `${EMOJI.emerald} Cost`, value: request.is_free ? '`FREE`' : `**${request.emerald_cost}** Emeralds`,        inline: true },
+        { name: '👤 Requested By', value: `<@${request.user_id}>`,                                                           inline: true },
+        { name: '📊 Status',      value: `${statusEmoji[request.status]} \`${request.status.toUpperCase()}\``,              inline: true },
+        { name: '🛠️ Assigned To', value: request.assigned_to ? `<@${request.assigned_to}>` : '`Unassigned`',               inline: true },
+        { name: '🕐 Submitted',   value: `<t:${Math.floor(new Date(request.created_at).getTime() / 1000)}:R>`,              inline: true },
       )
-      .setFooter({ text: `ID: ${request.id} • CreativeMode.net` })
+      .setFooter({ text: `ID: ${request.id} • Mod Makers` })
       .setTimestamp();
   },
 
@@ -137,8 +137,8 @@ module.exports = {
       )
       .addFields(
         { name: '🎫 Ticket ID', value: `\`${ticketId.slice(0, 8).toUpperCase()}\``, inline: true },
-        { name: '👤 Opened By', value: `<@${user.id}>`, inline: true },
-        { name: '📅 Opened', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+        { name: '👤 Opened By', value: `<@${user.id}>`,                             inline: true },
+        { name: '📅 Opened',    value: `<t:${Math.floor(Date.now() / 1000)}:R>`,    inline: true },
       )
       .setFooter(FOOTER)
       .setTimestamp();
@@ -176,7 +176,7 @@ module.exports = {
       .setColor(COLORS.gold)
       .setTitle(`${EMOJI.crown} Emerald Leaderboard`)
       .setDescription(rows.length ? rows.join('\n') : '*No players yet. Be the first to verify!*')
-      .setFooter({ text: `Top 10 • CreativeMode.net` })
+      .setFooter({ text: `Top 10 • Mod Makers` })
       .setTimestamp();
   },
 
@@ -187,10 +187,10 @@ module.exports = {
       .setColor(isGive ? COLORS.green : COLORS.red)
       .setTitle(`${EMOJI.admin} Admin: Emerald ${isGive ? 'Grant' : 'Deduction'}`)
       .addFields(
-        { name: 'Target', value: `<@${targetUser.id}>`, inline: true },
-        { name: 'Amount', value: `${isGive ? '+' : '-'}${amount} ${EMOJI.emerald}`, inline: true },
-        { name: 'New Balance', value: `${newBalance} ${EMOJI.emerald}`, inline: true },
-        { name: 'Admin', value: `<@${admin.id}>`, inline: true },
+        { name: 'Target',      value: `<@${targetUser.id}>`,              inline: true },
+        { name: 'Amount',      value: `${isGive ? '+' : '-'}${amount} ${EMOJI.emerald}`, inline: true },
+        { name: 'New Balance', value: `${newBalance} ${EMOJI.emerald}`,   inline: true },
+        { name: 'Admin',       value: `<@${admin.id}>`,                   inline: true },
       )
       .setFooter(FOOTER)
       .setTimestamp();
@@ -221,12 +221,12 @@ module.exports = {
       .setTitle(`${EMOJI.backup} Server Backup Complete`)
       .setDescription(`A full backup has been saved successfully.`)
       .addFields(
-        { name: '💾 File', value: `\`${filename}\``, inline: false },
-        { name: `${EMOJI.admin} Performed By`, value: `<@${admin.id}>`, inline: true },
-        { name: '👥 Players', value: `${stats.players}`, inline: true },
-        { name: '🧩 Mod Requests', value: `${stats.modRequests}`, inline: true },
-        { name: '🎫 Tickets', value: `${stats.tickets}`, inline: true },
-        { name: '💰 Transactions', value: `${stats.transactions}`, inline: true },
+        { name: '💾 File',                    value: `\`${filename}\``,      inline: false },
+        { name: `${EMOJI.admin} Performed By`, value: `<@${admin.id}>`,      inline: true  },
+        { name: '👥 Players',                 value: `${stats.players}`,     inline: true  },
+        { name: '🧩 Mod Requests',            value: `${stats.modRequests}`, inline: true  },
+        { name: '🎫 Tickets',                 value: `${stats.tickets}`,     inline: true  },
+        { name: '💰 Transactions',            value: `${stats.transactions}`,inline: true  },
       )
       .setFooter(FOOTER)
       .setTimestamp();
