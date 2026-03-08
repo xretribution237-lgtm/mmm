@@ -1,0 +1,19 @@
+{
+  "name": "creativemode-bot",
+  "version": "1.0.0",
+  "description": "CreativeMode.net Discord Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node deploy-commands.js",
+    "deploy-commands": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "better-sqlite3": "^9.4.3",
+    "dotenv": "^16.4.1",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
