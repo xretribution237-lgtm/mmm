@@ -1,9 +1,11 @@
-// src/events/interactionCreate.js
+// events/interactionCreate.js
 // =============================================
 // Routes slash commands and button interactions
 // =============================================
 
-const { Events, InteractionType } = require('discord.js');
+const { Events, InteractionType,
+  MessageFlags,
+} = require('discord.js');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -17,7 +19,7 @@ module.exports = {
         await command.execute(interaction, client);
       } catch (err) {
         console.error(`[CMD] Error in /${interaction.commandName}:`, err);
-        const msg = { content: '❌ An error occurred. Please try again.', ephemeral: true };
+        const msg = { content: '❌ An error occurred. Please try again.', flags: MessageFlags.Ephemeral };
         if (interaction.replied || interaction.deferred) {
           await interaction.followUp(msg).catch(() => {});
         } else {
@@ -63,7 +65,7 @@ module.exports = {
       if (action === 'modconfirm' || action === 'modcancel') {
         await interaction.reply({
           content: '⏱️ This preview has expired. Run `/requestmod` again.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         }).catch(() => {});
         return;
       }
