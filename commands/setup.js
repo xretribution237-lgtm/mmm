@@ -13,6 +13,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } = require('discord.js');
 
 const { requireAdmin, auditLog } = require('../utils/permissions');
@@ -27,7 +28,7 @@ module.exports = {
   async execute(interaction, client) {
     if (!await requireAdmin(interaction)) return;
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const guild = interaction.guild;
     const botMember = guild.members.me;
@@ -35,10 +36,11 @@ module.exports = {
     try {
       // ── 1. Create Roles ──────────────────────────────────────────
       const roleDefs = [
-        { name: '👑 Admin',     color: 0xD32F2F, hoist: true,  position: 10 },
-        { name: '🛡️ Moderator', color: 0x7B1FA2, hoist: true,  position: 9  },
-        { name: '💎 Premium',   color: 0xFFD700, hoist: true,  position: 8  },
-        { name: '✅ Verified',  color: 0x00C853, hoist: false, position: 1  },
+        { name: '👑 Admin',       color: 0xD32F2F, hoist: true,  position: 10 },
+        { name: '🛡️ Moderator',   color: 0x7B1FA2, hoist: true,  position: 9  },
+        { name: '💎 Premium',     color: 0xFFD700, hoist: true,  position: 8  },
+        { name: '✅ Verified',    color: 0x00C853, hoist: false, position: 2  },
+        { name: '🔴 Unverified',  color: 0x757575, hoist: false, position: 1  },
       ];
 
       const roles = {};
@@ -53,9 +55,10 @@ module.exports = {
         roles[def.name] = role;
       }
 
-      const verifiedRole  = roles['✅ Verified'];
-      const adminRole     = roles['👑 Admin'];
-      const modRole       = roles['🛡️ Moderator'];
+      const verifiedRole    = roles['✅ Verified'];
+      const unverifiedRole  = roles['🔴 Unverified'];
+      const adminRole       = roles['👑 Admin'];
+      const modRole         = roles['🛡️ Moderator'];
 
       // ── 2. Create Categories & Channels ─────────────────────────
 
@@ -121,6 +124,39 @@ module.exports = {
         ],
       });
 
+      await guild.channels.create({
+        name: '🖼️・showcase',
+        type: ChannelType.GuildText,
+        topic: 'Share your mods and creations here!',
+        parent: communityCat.id,
+        permissionOverwrites: [
+          { id: guild.roles.everyone.id, deny: everyoneDeny },
+          { id: verifiedRole.id, allow: verifiedAllow },
+        ],
+      });
+
+      await guild.channels.create({
+        name: '💡・suggestions',
+        type: ChannelType.GuildText,
+        topic: 'Suggest features or improvements for Mod Makers',
+        parent: communityCat.id,
+        permissionOverwrites: [
+          { id: guild.roles.everyone.id, deny: everyoneDeny },
+          { id: verifiedRole.id, allow: verifiedAllow },
+        ],
+      });
+
+      await guild.channels.create({
+        name: '🐛・bug-reports',
+        type: ChannelType.GuildText,
+        topic: 'Report bugs with mods or the bot here',
+        parent: communityCat.id,
+        permissionOverwrites: [
+          { id: guild.roles.everyone.id, deny: everyoneDeny },
+          { id: verifiedRole.id, allow: verifiedAllow },
+        ],
+      });
+
       const leaderboardChannel = await guild.channels.create({
         name: '👑・leaderboard',
         type: ChannelType.GuildText,
@@ -129,6 +165,36 @@ module.exports = {
           { id: guild.roles.everyone.id, deny: everyoneDeny },
           { id: verifiedRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
           { id: botMember.id, allow: adminAllow },
+        ],
+      });
+
+      // ── ECONOMY category ──────────────────────────────────────────
+      const economyCat = await guild.channels.create({
+        name: '💰 Economy',
+        type: ChannelType.GuildCategory,
+      });
+
+      await guild.channels.create({
+        name: '❇️・emerald-info',
+        type: ChannelType.GuildText,
+        topic: 'Learn about Emeralds and how the economy works',
+        parent: economyCat.id,
+        permissionOverwrites: [
+          { id: guild.roles.everyone.id, deny: everyoneDeny },
+          { id: verifiedRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
+          { id: adminRole.id, allow: adminAllow },
+          { id: botMember.id, allow: adminAllow },
+        ],
+      });
+
+      await guild.channels.create({
+        name: '🎮・games',
+        type: ChannelType.GuildText,
+        topic: 'Use /coinflip and /trivia here to earn Emeralds!',
+        parent: economyCat.id,
+        permissionOverwrites: [
+          { id: guild.roles.everyone.id, deny: everyoneDeny },
+          { id: verifiedRole.id, allow: verifiedAllow },
         ],
       });
 
@@ -218,7 +284,7 @@ module.exports = {
             '**6.** Emerald purchases are final — no chargebacks.\n' +
             '**7.** Breaking rules may result in a ban.\n\n' +
             '*By staying in this server you agree to these rules.*',
-          footer: { text: 'CreativeMode.net' },
+          footer: { text: 'Mod Makers' },
           timestamp: new Date().toISOString(),
         }],
       });
@@ -236,23 +302,24 @@ module.exports = {
       await generalChannel.send({
         embeds: [{
           color: 0x00C853,
-          title: '👋 Welcome to CreativeMode.net!',
+          title: '👋 Welcome to Mod Makers!',
           description:
-            'This is the official Discord for **CreativeMode.net** — the community mod platform.\n\n' +
+            'This is the official Discord for **Mod Makers** — the community mod platform.\n\n' +
             '❇️ Use `/balance` to check your Emeralds\n' +
             '🧩 Use `/requestmod` to submit a mod\n' +
             '🎫 Use `/ticket` to get support\n' +
             '👑 Use `/leaderboard` to see top earners',
-          footer: { text: 'CreativeMode.net' },
+          footer: { text: 'Mod Makers' },
           timestamp: new Date().toISOString(),
         }],
       });
 
       // ── 4. Post channel/role IDs to admin log ────────────────────
       const setupSummary = [
-        `**Setup Complete!** Copy these IDs to your \`.env\` file:`,
+        `**Setup Complete!** Copy these IDs to your Railway Variables:`,
         ``,
         `\`VERIFIED_ROLE_ID\` = ${verifiedRole.id}`,
+        `\`UNVERIFIED_ROLE_ID\` = ${unverifiedRole.id}`,
         `\`ADMIN_ROLE_ID\` = ${adminRole.id}`,
         `\`MOD_ROLE_ID\` = ${modRole.id}`,
         `\`VERIFY_CHANNEL_ID\` = ${verifyChannel.id}`,
@@ -272,7 +339,7 @@ module.exports = {
 
       await interaction.editReply({
         embeds: [successEmbed(
-          `✅ **Setup complete!**\n\nAll channels, roles, and embeds have been created.\n\nCheck <#${adminLogChannel.id}> for the IDs to add to your \`.env\` file, then restart the bot.`
+          `✅ **Setup complete!**\n\nAll channels, roles, and embeds have been created.\n\nCheck <#${adminLogChannel.id}> for the IDs to add to your Railway Variables, then redeploy.`
         )],
       });
 
