@@ -1,10 +1,10 @@
 {
-  "name": "creativemode-bot",
+  "name": "mod-makers-bot",
   "version": "1.0.0",
-  "description": "CreativeMode.net Discord Bot",
+  "description": "Mod Makers Discord Bot - Mod Platform & Community Management",
   "main": "index.js",
   "scripts": {
-    "start": "node deploy-commands.js"
+    "start": "node index.js",
     "deploy-commands": "node deploy-commands.js"
   },
   "dependencies": {
@@ -16,5 +16,4 @@
   "engines": {
     "node": ">=18.0.0"
   }
-
 }
