@@ -1,43 +1,35 @@
-// src/database/db.js
+// database/db.js
 // =============================================
-// CreativeMode Bot - Database Layer (SQLite)
-// All economy, mod requests, tickets, and audit
-// logs are handled here with prepared statements
-// to prevent SQL injection.
+// Mod Makers Bot - Database Layer (SQLite)
 // =============================================
 
 const Database = require('better-sqlite3');
 const path = require('path');
-const fs = require('fs');
+const fs   = require('fs');
 
-const DB_PATH = process.env.DB_PATH || './data/creativemode.db';
-
-// Ensure data directory exists
-const dbDir = path.dirname(DB_PATH);
+const DB_PATH = process.env.DB_PATH || './data/modmakers.db';
+const dbDir   = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
 const db = new Database(DB_PATH);
-
-// Enable WAL mode for better concurrent read performance
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 // =============================================
-// SCHEMA INITIALIZATION
+// SCHEMA
 // =============================================
 db.exec(`
-  -- Players table: stores emerald balances and verification status
   CREATE TABLE IF NOT EXISTS players (
-    user_id       TEXT PRIMARY KEY,
-    username      TEXT NOT NULL,
-    emeralds      INTEGER NOT NULL DEFAULT 0,
-    verified      INTEGER NOT NULL DEFAULT 0,
-    free_mod_used INTEGER NOT NULL DEFAULT 0,
-    joined_at     TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    user_id         TEXT PRIMARY KEY,
+    username        TEXT NOT NULL,
+    emeralds        INTEGER NOT NULL DEFAULT 0,
+    verified        INTEGER NOT NULL DEFAULT 0,
+    free_mod_used   INTEGER NOT NULL DEFAULT 0,
+    daily_claimed   TEXT,
+    joined_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  -- Mod requests: every mod request ever made
   CREATE TABLE IF NOT EXISTS mod_requests (
     id            TEXT PRIMARY KEY,
     user_id       TEXT NOT NULL,
@@ -55,7 +47,6 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES players(user_id)
   );
 
-  -- Transactions: immutable ledger of all emerald movements
   CREATE TABLE IF NOT EXISTS transactions (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id       TEXT NOT NULL,
@@ -67,7 +58,6 @@ db.exec(`
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  -- Tickets: support/request tickets
   CREATE TABLE IF NOT EXISTS tickets (
     id            TEXT PRIMARY KEY,
     user_id       TEXT NOT NULL,
@@ -79,7 +69,14 @@ db.exec(`
     closed_by     TEXT
   );
 
-  -- Backups: log of all /backup commands run
+  CREATE TABLE IF NOT EXISTS warnings (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       TEXT NOT NULL,
+    reason        TEXT NOT NULL,
+    issued_by     TEXT NOT NULL,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS backups (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     performed_by  TEXT NOT NULL,
@@ -88,7 +85,6 @@ db.exec(`
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
-  -- Audit log: all sensitive admin actions
   CREATE TABLE IF NOT EXISTS audit_log (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     action        TEXT NOT NULL,
@@ -100,7 +96,7 @@ db.exec(`
 `);
 
 // =============================================
-// PLAYER OPERATIONS
+// PLAYER OPS
 // =============================================
 const playerOps = {
   get: db.prepare('SELECT * FROM players WHERE user_id = ?'),
@@ -125,13 +121,23 @@ const playerOps = {
     WHERE user_id = ?
   `),
 
+  setDailyClaimed: db.prepare(`
+    UPDATE players SET daily_claimed = datetime('now'), updated_at = datetime('now')
+    WHERE user_id = ?
+  `),
+
   getLeaderboard: db.prepare(`
     SELECT user_id, username, emeralds FROM players
     WHERE verified = 1
     ORDER BY emeralds DESC LIMIT 10
   `),
 
-  // Safe emerald deduction — will not go below 0, returns false if insufficient
+  getAll: db.prepare(`SELECT * FROM players WHERE verified = 1`),
+
+  getTotalEmeralds: db.prepare(`SELECT SUM(emeralds) as total FROM players WHERE verified = 1`),
+
+  getVerifiedCount: db.prepare(`SELECT COUNT(*) as count FROM players WHERE verified = 1`),
+
   deductEmeralds(userId, amount) {
     const player = this.get.get(userId);
     if (!player || player.emeralds < amount) return false;
@@ -139,7 +145,6 @@ const playerOps = {
     return true;
   },
 
-  // Atomic verify + grant emeralds in one transaction
   verifyAndGrant: db.transaction((userId, username, grantAmount) => {
     let player = playerOps.get.get(userId);
     if (!player) {
@@ -150,19 +155,15 @@ const playerOps = {
     playerOps.setVerified.run(userId);
     playerOps.updateEmeralds.run({ user_id: userId, amount: grantAmount });
     transactionOps.log.run({
-      user_id: userId,
-      amount: grantAmount,
-      type: 'grant',
-      reason: 'verification_bonus',
-      ref_id: null,
-      performed_by: 'system'
+      user_id: userId, amount: grantAmount, type: 'grant',
+      reason: 'verification_bonus', ref_id: null, performed_by: 'system'
     });
     return { alreadyVerified: false, player: playerOps.get.get(userId) };
   }),
 };
 
 // =============================================
-// TRANSACTION OPERATIONS
+// TRANSACTION OPS
 // =============================================
 const transactionOps = {
   log: db.prepare(`
@@ -177,7 +178,7 @@ const transactionOps = {
 };
 
 // =============================================
-// MOD REQUEST OPERATIONS
+// MOD REQUEST OPS
 // =============================================
 const modOps = {
   create: db.prepare(`
@@ -194,24 +195,21 @@ const modOps = {
 
   getPending: db.prepare(`
     SELECT mr.*, p.username, p.emeralds as user_emeralds
-    FROM mod_requests mr
-    JOIN players p ON mr.user_id = p.user_id
-    WHERE mr.status = 'pending'
-    ORDER BY mr.created_at ASC
+    FROM mod_requests mr JOIN players p ON mr.user_id = p.user_id
+    WHERE mr.status = 'pending' ORDER BY mr.created_at ASC
   `),
 
+  getPendingCount: db.prepare(`SELECT COUNT(*) as count FROM mod_requests WHERE status = 'pending'`),
+
   updateStatus: db.prepare(`
-    UPDATE mod_requests
-    SET status = @status, assigned_to = @assigned_to, updated_at = datetime('now')
+    UPDATE mod_requests SET status = @status, assigned_to = @assigned_to, updated_at = datetime('now')
     WHERE id = @id
   `),
 
   setMessageId: db.prepare(`
-    UPDATE mod_requests SET message_id = @message_id, channel_id = @channel_id
-    WHERE id = @id
+    UPDATE mod_requests SET message_id = @message_id, channel_id = @channel_id WHERE id = @id
   `),
 
-  // Atomic: deduct emeralds + create mod request
   submitRequest: db.transaction((userId, username, requestData, cost, isFree) => {
     const { v4: uuidv4 } = require('uuid');
     const player = playerOps.get.get(userId);
@@ -231,54 +229,45 @@ const modOps = {
     } else {
       playerOps.markFreeModUsed.run(userId);
     }
-
     return { success: true, requestId: id };
   }),
 };
 
 // =============================================
-// TICKET OPERATIONS
+// TICKET OPS
 // =============================================
 const ticketOps = {
-  create: db.prepare(`
-    INSERT INTO tickets (id, user_id, channel_id, subject)
-    VALUES (@id, @user_id, @channel_id, @subject)
-  `),
-
+  create: db.prepare(`INSERT INTO tickets (id, user_id, channel_id, subject) VALUES (@id, @user_id, @channel_id, @subject)`),
   getByChannel: db.prepare('SELECT * FROM tickets WHERE channel_id = ?'),
-
-  getByUser: db.prepare(`
-    SELECT * FROM tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT 5
-  `),
-
-  close: db.prepare(`
-    UPDATE tickets SET status = 'closed', closed_at = datetime('now'), closed_by = @closed_by
-    WHERE channel_id = @channel_id
-  `),
-
+  getByUser: db.prepare(`SELECT * FROM tickets WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`),
+  close: db.prepare(`UPDATE tickets SET status = 'closed', closed_at = datetime('now'), closed_by = @closed_by WHERE channel_id = @channel_id`),
   getOpenCount: db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE user_id = ? AND status = 'open'`),
+  getTotalOpen: db.prepare(`SELECT COUNT(*) as count FROM tickets WHERE status = 'open'`),
 };
 
 // =============================================
-// AUDIT LOG OPERATIONS
+// WARNING OPS
+// =============================================
+const warningOps = {
+  add: db.prepare(`INSERT INTO warnings (user_id, reason, issued_by) VALUES (@user_id, @reason, @issued_by)`),
+  getByUser: db.prepare(`SELECT * FROM warnings WHERE user_id = ? ORDER BY created_at DESC`),
+  countByUser: db.prepare(`SELECT COUNT(*) as count FROM warnings WHERE user_id = ?`),
+  clearByUser: db.prepare(`DELETE FROM warnings WHERE user_id = ?`),
+};
+
+// =============================================
+// AUDIT OPS
 // =============================================
 const auditOps = {
-  log: db.prepare(`
-    INSERT INTO audit_log (action, performed_by, target_user, details)
-    VALUES (@action, @performed_by, @target_user, @details)
-  `),
-
+  log: db.prepare(`INSERT INTO audit_log (action, performed_by, target_user, details) VALUES (@action, @performed_by, @target_user, @details)`),
   getRecent: db.prepare(`SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 50`),
 };
 
 // =============================================
-// BACKUP OPERATIONS
+// BACKUP OPS
 // =============================================
 const backupOps = {
-  log: db.prepare(`
-    INSERT INTO backups (performed_by, file_path, note)
-    VALUES (@performed_by, @file_path, @note)
-  `),
+  log: db.prepare(`INSERT INTO backups (performed_by, file_path, note) VALUES (@performed_by, @file_path, @note)`),
 };
 
-module.exports = { db, playerOps, transactionOps, modOps, ticketOps, auditOps, backupOps };
+module.exports = { db, playerOps, transactionOps, modOps, ticketOps, warningOps, auditOps, backupOps };
